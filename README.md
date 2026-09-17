@@ -37,12 +37,14 @@ Add one entry per segment, each with its **distance (km)** and **speed (km/h)**.
 
 The average is **distance-weighted** (total distance ÷ total time), not a naive mean of the segment speeds — so a long slow segment correctly outweighs a short fast one.
 
-Use **Add Segment** to append entries and **Remove** to drop one.
+Use **Add Segment** to append entries and **Remove** to drop one; the remaining segments renumber themselves.
+
+Times of an hour or more are shown as `h:mm:ss` (e.g. `1:40:00`); shorter ones as `mm:ss`.
 
 ### 4. Average pace from 1K segments
 Built for reading splits straight off a watch. Enter the pace of each kilometre as `mm:ss` and get a per-km breakdown table plus the total distance, total time, average pace, and average speed.
 
-The **8K** and **10K** buttons pre-create that many segment rows in one click (this clears any rows already present). **Add 1K Segment** appends a single extra row.
+The **8K** and **10K** buttons pre-create that many segment rows in one click. They replace whatever is already there, so if any pace has been filled in they ask for confirmation first. **Add 1K Segment** appends a single extra row.
 
 Because every segment is exactly 1 km, the average here is a straight mean of the split times.
 
@@ -53,11 +55,11 @@ A static lookup table generated on page load, covering paces from **6:30 down to
 
 | Field | Format | Example |
 |---|---|---|
-| Speed | Decimal number, km/h | `11.5` |
-| Pace | `mm:ss` | `5:30` |
-| Distance | Decimal number, km | `2.5` |
+| Speed | Decimal number, 1–60 km/h | `11.5` |
+| Pace | `mm:ss`, digits only | `5:30` |
+| Distance | Decimal number, km greater than 0 | `2.5` |
 
-Invalid input (missing values, non-numeric entries, seconds outside `0`–`59`, or a pace not in `mm:ss` form) raises a browser alert and the calculation is aborted.
+Invalid input raises a browser alert naming the offending segment, and the calculation is aborted. Rejected: missing values, speeds outside 1–60 km/h, a zero or negative distance, seconds outside `0`–`59`, a pace of `0:00`, and anything not in strict `mm:ss` form — trailing characters such as `5abc:30` are refused rather than silently parsed as `5:30`.
 
 ## How it works
 
