@@ -85,14 +85,16 @@
         tr:nth-child(even) {
             background-color: #f9f9f9;
         }
-        .distance-entry {
+        .distance-entry,
+        .pace-entry {
             background-color: #f9f9f9;
             padding: 15px;
             margin: 10px 0;
             border-radius: 4px;
             border: 1px solid #ddd;
         }
-        .distance-entry input {
+        .distance-entry input,
+        .pace-entry input {
             margin: 5px 0;
         }
         .remove-btn {
@@ -126,20 +128,20 @@
 <body>
     <h1>Running Pace Calculator</h1>
 
-    <!-- Parts 1 and 2: Side by Side Converters -->
+    <!-- Sections 1 and 2: side-by-side converters -->
     <div class="converters-grid">
-        <!-- Part 1: Speed to Pace -->
+        <!-- Section 1: speed to pace -->
         <div class="calculator-section">
             <h2>1. Convert Speed to Pace</h2>
             <div class="input-group">
                 <label for="velocity-input">Speed (km/h):</label>
-                <input type="number" id="velocity-input" step="0.1" min="1" placeholder="Enter speed in km/h">
+                <input type="number" id="velocity-input" step="0.1" min="1" max="60" placeholder="Enter speed in km/h">
             </div>
             <button onclick="convertVelocityToPace()">Convert</button>
             <div id="velocity-result" class="result" style="display:none;"></div>
         </div>
 
-        <!-- Part 2: Pace to Speed -->
+        <!-- Section 2: pace to speed -->
         <div class="calculator-section">
             <h2>2. Convert Pace to Speed</h2>
             <div class="input-group">
@@ -151,7 +153,7 @@
         </div>
     </div>
 
-    <!-- Part 3: Average Calculator (formerly Part 4) -->
+    <!-- Section 3: multi-segment run calculator -->
     <div class="calculator-section">
         <h2>3. Multi-Segment Run Calculator</h2>
         <div id="distances-container"></div>
@@ -160,9 +162,9 @@
         <div id="average-result" class="result" style="display:none;"></div>
     </div>
 
-    <!-- Part 4: 1K Pace Segments Average Calculator -->
+    <!-- Section 4: average pace from 1K segments -->
     <div class="calculator-section">
-        <h2>5. Average Pace from 1K Segments</h2>
+        <h2>4. Average Pace from 1K Segments</h2>
         <p style="color:#555; margin-bottom:15px;">Add each 1 km segment with its pace to calculate your overall average pace.</p>
         <div style="margin-bottom:10px;">
             <button class="add-btn" onclick="addPaceSegments(8)" style="font-size:14px; padding:6px 14px;">8K</button>
@@ -174,9 +176,9 @@
         <div id="pace-segments-result" class="result" style="display:none;"></div>
     </div>
 
-    <!-- Part 5: Conversion Table (formerly Part 3) -->
+    <!-- Section 5: pace and speed reference table -->
     <div class="calculator-section">
-        <h2>6. Pace & Speed Reference Table</h2>
+        <h2>5. Pace & Speed Reference Table</h2>
         <table id="conversion-table">
             <thead>
                 <tr>
@@ -190,11 +192,26 @@
     </div>
 
     <script>
+        // Speed limits accepted across the calculators, in km/h.
+        const MIN_SPEED = 1;
+        const MAX_SPEED = 60;
+
+        // Converts a duration in seconds to { minutes, seconds }, carrying a
+        // rounded 60 into the minutes so a pace never renders as e.g. "5:60".
+        function splitSeconds(totalSeconds) {
+            let minutes = Math.floor(totalSeconds / 60);
+            let seconds = Math.round(totalSeconds % 60);
+            if (seconds === 60) {
+                minutes += 1;
+                seconds = 0;
+            }
+            return { minutes, seconds };
+        }
+
         // Helper function to convert speed (km/h) to pace (min:sec per km)
         function velocityToPace(velocity) {
             const minutesPerKm = 60 / velocity;
-            const minutes = Math.floor(minutesPerKm);
-            const seconds = Math.round((minutesPerKm - minutes) * 60);
+            const { minutes, seconds } = splitSeconds(minutesPerKm * 60);
             return { minutes, seconds, total: minutesPerKm };
         }
 
@@ -209,11 +226,57 @@
             return `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
 
-        // Part 1: Convert Speed to Pace
+        // Formats a duration as h:mm:ss, dropping the hours part when it is zero.
+        function formatDuration(totalSeconds) {
+            const { minutes: allMinutes, seconds } = splitSeconds(totalSeconds);
+            const hours = Math.floor(allMinutes / 60);
+            const minutes = allMinutes % 60;
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Parses a strict mm:ss pace. Returns the duration in seconds, or null
+        // when the text is not exactly two all-digit fields adding up to a
+        // usable pace. Trailing junk such as "5abc:30xyz" is rejected here,
+        // where parseInt alone would silently accept it.
+        function parsePaceToSeconds(text) {
+            const parts = text.trim().split(':');
+            if (parts.length !== 2) {
+                return null;
+            }
+            if (!/^\d+$/.test(parts[0].trim()) || !/^\d+$/.test(parts[1].trim())) {
+                return null;
+            }
+
+            const minutes = parseInt(parts[0], 10);
+            const seconds = parseInt(parts[1], 10);
+            if (seconds > 59) {
+                return null;
+            }
+
+            const totalSeconds = minutes * 60 + seconds;
+            if (totalSeconds <= 0) {
+                return null;
+            }
+            return totalSeconds;
+        }
+
+        // Validates a speed typed into a number input.
+        function parseSpeed(text) {
+            const velocity = parseFloat(text);
+            if (isNaN(velocity) || velocity < MIN_SPEED || velocity > MAX_SPEED) {
+                return null;
+            }
+            return velocity;
+        }
+
+        // Section 1: Convert Speed to Pace
         function convertVelocityToPace() {
-            const velocity = parseFloat(document.getElementById('velocity-input').value);
-            if (isNaN(velocity) || velocity <= 0) {
-                alert('Please enter a valid speed');
+            const velocity = parseSpeed(document.getElementById('velocity-input').value);
+            if (velocity === null) {
+                alert(`Please enter a speed between ${MIN_SPEED} and ${MAX_SPEED} km/h`);
                 return;
             }
 
@@ -223,31 +286,26 @@
             resultDiv.style.display = 'block';
         }
 
-        // Part 2: Convert Pace to Speed
+        // Section 2: Convert Pace to Speed
         function convertPaceToVelocity() {
-            const paceInput = document.getElementById('pace-input').value;
-            const parts = paceInput.split(':');
-
-            if (parts.length !== 2) {
-                alert('Please enter pace in format mm:ss (e.g., 5:30)');
+            const paceSeconds = parsePaceToSeconds(document.getElementById('pace-input').value);
+            if (paceSeconds === null) {
+                alert('Please enter a pace in mm:ss format (e.g., 5:30), with seconds 0-59');
                 return;
             }
 
-            const minutes = parseInt(parts[0]);
-            const seconds = parseInt(parts[1]);
-
-            if (isNaN(minutes) || isNaN(seconds) || seconds >= 60 || seconds < 0) {
-                alert('Please enter valid time');
+            const velocity = 3600 / paceSeconds;
+            if (velocity < MIN_SPEED || velocity > MAX_SPEED) {
+                alert(`That pace is outside the supported range of ${MIN_SPEED}-${MAX_SPEED} km/h`);
                 return;
             }
 
-            const velocity = paceToVelocity(minutes, seconds);
             const resultDiv = document.getElementById('pace-result');
             resultDiv.textContent = `Speed: ${velocity.toFixed(2)} km/h`;
             resultDiv.style.display = 'block';
         }
 
-        // Part 4: Generate Conversion Table
+        // Section 5: Generate Conversion Table
         function generateConversionTable() {
             const tableBody = document.getElementById('table-body');
             const rows = [];
@@ -281,35 +339,43 @@
             });
         }
 
-        // Part 3: Multi-Segment Run Calculator
-        let distanceCount = 0;
-
+        // Section 3: Multi-Segment Run Calculator
+        //
+        // Entries carry no index in their id: positions are read from the DOM
+        // order at calculation time, so removing an entry cannot leave a gap in
+        // the numbering the user sees.
         function addDistanceEntry() {
-            distanceCount++;
             const container = document.getElementById('distances-container');
             const entry = document.createElement('div');
             entry.className = 'distance-entry';
-            entry.id = `distance-${distanceCount}`;
             entry.innerHTML = `
-                <label>Segment ${distanceCount} Distance (km):</label>
-                <input type="number" id="distance-${distanceCount}-km" step="0.01" min="0" placeholder="Distance in km">
-                <label>Segment ${distanceCount} Speed (km/h):</label>
-                <input type="number" id="distance-${distanceCount}-velocity" step="0.1" min="0" placeholder="Speed in km/h">
-                <button class="remove-btn" onclick="removeDistanceEntry(${distanceCount})">Remove</button>
+                <label>Distance (km):</label>
+                <input type="number" class="segment-distance" step="0.01" min="0" placeholder="Distance in km">
+                <label>Speed (km/h):</label>
+                <input type="number" class="segment-speed" step="0.1" min="${MIN_SPEED}" max="${MAX_SPEED}" placeholder="Speed in km/h">
+                <button class="remove-btn" onclick="removeDistanceEntry(this)">Remove</button>
             `;
             container.appendChild(entry);
+            renumberDistanceEntries();
         }
 
-        function removeDistanceEntry(id) {
-            const entry = document.getElementById(`distance-${id}`);
-            if (entry) {
-                entry.remove();
-            }
+        function removeDistanceEntry(button) {
+            button.closest('.distance-entry').remove();
+            renumberDistanceEntries();
+        }
+
+        // Rewrites the visible "Segment N" labels to match DOM order.
+        function renumberDistanceEntries() {
+            const entries = document.querySelectorAll('#distances-container .distance-entry');
+            entries.forEach((entry, index) => {
+                const labels = entry.getElementsByTagName('label');
+                labels[0].textContent = `Segment ${index + 1} Distance (km):`;
+                labels[1].textContent = `Segment ${index + 1} Speed (km/h):`;
+            });
         }
 
         function calculateAverage() {
-            const container = document.getElementById('distances-container');
-            const entries = container.getElementsByClassName('distance-entry');
+            const entries = document.querySelectorAll('#distances-container .distance-entry');
 
             if (entries.length === 0) {
                 alert('Please add at least one segment');
@@ -317,69 +383,84 @@
             }
 
             let totalDistance = 0;
-            let totalTime = 0; // in hours
+            let totalHours = 0;
 
-            for (let entry of entries) {
-                const id = entry.id.split('-')[1];
-                const distance = parseFloat(document.getElementById(`distance-${id}-km`).value);
-                const velocity = parseFloat(document.getElementById(`distance-${id}-velocity`).value);
+            for (let i = 0; i < entries.length; i++) {
+                const distance = parseFloat(entries[i].querySelector('.segment-distance').value);
+                const velocity = parseSpeed(entries[i].querySelector('.segment-speed').value);
 
-                if (isNaN(distance) || isNaN(velocity) || distance <= 0 || velocity <= 0) {
-                    alert(`Please enter valid values for all segments`);
+                if (isNaN(distance) || distance <= 0) {
+                    alert(`Segment ${i + 1}: please enter a distance greater than 0 km`);
+                    return;
+                }
+                if (velocity === null) {
+                    alert(`Segment ${i + 1}: please enter a speed between ${MIN_SPEED} and ${MAX_SPEED} km/h`);
                     return;
                 }
 
                 totalDistance += distance;
-                totalTime += distance / velocity; // time = distance / speed
+                totalHours += distance / velocity; // time = distance / speed
             }
 
-            const averageVelocity = totalDistance / totalTime;
+            const averageVelocity = totalDistance / totalHours;
             const pace = velocityToPace(averageVelocity);
 
             const resultDiv = document.getElementById('average-result');
             resultDiv.innerHTML = `
                 <strong>Total Distance:</strong> ${totalDistance.toFixed(2)} km<br>
-                <strong>Total Time:</strong> ${Math.floor(totalTime * 60)}:${Math.round((totalTime * 60 % 1) * 60).toString().padStart(2, '0')}<br>
+                <strong>Total Time:</strong> ${formatDuration(totalHours * 3600)}<br>
                 <strong>Average Speed:</strong> ${averageVelocity.toFixed(2)} km/h<br>
                 <strong>Average Pace:</strong> ${formatPace(pace.minutes, pace.seconds)} min/km
             `;
             resultDiv.style.display = 'block';
         }
 
-        // Part 5: Average Pace from 1K Segments
-        let paceSegmentCount = 0;
-
+        // Section 4: Average Pace from 1K Segments
         function addPaceSegment() {
-            paceSegmentCount++;
             const container = document.getElementById('pace-segments-container');
             const entry = document.createElement('div');
-            entry.className = 'distance-entry';
-            entry.id = `pace-segment-${paceSegmentCount}`;
+            entry.className = 'pace-entry';
             entry.innerHTML = `
-                <label>Km ${paceSegmentCount} — Pace (min/km):</label>
-                <input type="text" id="pace-segment-${paceSegmentCount}-pace" placeholder="e.g. 5:30">
-                <button class="remove-btn" onclick="removePaceSegment(${paceSegmentCount})">Remove</button>
+                <label>Pace (min/km):</label>
+                <input type="text" class="segment-pace" placeholder="e.g. 5:30">
+                <button class="remove-btn" onclick="removePaceSegment(this)">Remove</button>
             `;
             container.appendChild(entry);
+            renumberPaceSegments();
         }
 
+        // Replaces the current segments with `count` empty ones. Confirms first
+        // when that would discard pace values the user has already typed.
         function addPaceSegments(count) {
-            // Clear existing segments
-            document.getElementById('pace-segments-container').innerHTML = '';
-            paceSegmentCount = 0;
+            const container = document.getElementById('pace-segments-container');
+            const filled = [...container.querySelectorAll('.segment-pace')]
+                .some(input => input.value.trim() !== '');
+
+            if (filled && !confirm(`Replace the current segments with ${count} empty ones? Paces you have entered will be lost.`)) {
+                return;
+            }
+
+            container.innerHTML = '';
             for (let i = 0; i < count; i++) {
                 addPaceSegment();
             }
         }
 
-        function removePaceSegment(id) {
-            const entry = document.getElementById(`pace-segment-${id}`);
-            if (entry) entry.remove();
+        function removePaceSegment(button) {
+            button.closest('.pace-entry').remove();
+            renumberPaceSegments();
+        }
+
+        // Rewrites the visible "Km N" labels to match DOM order.
+        function renumberPaceSegments() {
+            const entries = document.querySelectorAll('#pace-segments-container .pace-entry');
+            entries.forEach((entry, index) => {
+                entry.getElementsByTagName('label')[0].textContent = `Km ${index + 1} — Pace (min/km):`;
+            });
         }
 
         function calculatePaceAverage() {
-            const container = document.getElementById('pace-segments-container');
-            const entries = container.getElementsByClassName('distance-entry');
+            const entries = document.querySelectorAll('#pace-segments-container .pace-entry');
 
             if (entries.length === 0) {
                 alert('Please add at least one 1K segment');
@@ -387,42 +468,29 @@
             }
 
             let totalSeconds = 0;
-            let segmentDetails = [];
+            const segmentDetails = [];
 
-            for (let entry of entries) {
-                const id = entry.id.split('-')[2];
-                const paceInput = document.getElementById(`pace-segment-${id}-pace`).value;
-                const parts = paceInput.split(':');
+            for (let i = 0; i < entries.length; i++) {
+                const segSeconds = parsePaceToSeconds(entries[i].querySelector('.segment-pace').value);
 
-                if (parts.length !== 2) {
-                    alert(`Invalid pace format in segment. Use mm:ss (e.g. 5:30)`);
+                if (segSeconds === null) {
+                    alert(`Km ${i + 1}: please enter a pace in mm:ss format (e.g. 5:30), with seconds 0-59`);
                     return;
                 }
 
-                const mins = parseInt(parts[0]);
-                const secs = parseInt(parts[1]);
-
-                if (isNaN(mins) || isNaN(secs) || secs >= 60 || secs < 0 || mins < 0) {
-                    alert(`Invalid pace values in segment. Seconds must be 0-59.`);
-                    return;
-                }
-
-                const segSeconds = mins * 60 + secs;
+                const { minutes, seconds } = splitSeconds(segSeconds);
                 totalSeconds += segSeconds;
-                segmentDetails.push({ km: segmentDetails.length + 1, pace: formatPace(mins, secs), seconds: segSeconds });
+                segmentDetails.push({ km: i + 1, pace: formatPace(minutes, seconds) });
             }
 
             const numSegments = entries.length;
             const avgSeconds = totalSeconds / numSegments;
-            const avgMin = Math.floor(avgSeconds / 60);
-            const avgSec = Math.round(avgSeconds % 60);
+            const avgPace = splitSeconds(avgSeconds);
+            const avgVelocity = 3600 / avgSeconds;
 
-            const totalMin = Math.floor(totalSeconds / 60);
-            const totalSec = totalSeconds % 60;
-
-            const avgVelocity = 60 / (avgSeconds / 60);
-
-            let tableRows = segmentDetails.map(s => `<tr><td>${s.km}</td><td>${s.pace}</td></tr>`).join('');
+            const tableRows = segmentDetails
+                .map(s => `<tr><td>${s.km}</td><td>${s.pace}</td></tr>`)
+                .join('');
 
             const resultDiv = document.getElementById('pace-segments-result');
             resultDiv.innerHTML = `
@@ -431,8 +499,8 @@
                     <tbody>${tableRows}</tbody>
                 </table>
                 <strong>Total Distance:</strong> ${numSegments} km<br>
-                <strong>Total Time:</strong> ${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}<br>
-                <strong>Average Pace:</strong> ${formatPace(avgMin, avgSec)} min/km<br>
+                <strong>Total Time:</strong> ${formatDuration(totalSeconds)}<br>
+                <strong>Average Pace:</strong> ${formatPace(avgPace.minutes, avgPace.seconds)} min/km<br>
                 <strong>Average Speed:</strong> ${avgVelocity.toFixed(2)} km/h
             `;
             resultDiv.style.display = 'block';
