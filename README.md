@@ -4,16 +4,20 @@ A single-file, dependency-free HTML tool for runners who need to move between **
 
 Everything runs locally in the browser — no build step, no network requests, no data leaves the page.
 
+## Live version
+
+Available at: **https://fmiguelt.github.io/running-pace-calculator/**
+
 ## Getting started
 
-Open `running_pace_calculator.html` in any modern browser:
+No installation required — the live version above runs straight from the browser.
+
+To run it locally instead, open `index.html` in any modern browser:
 
 ```bash
-open running_pace_calculator.html      # macOS
-xdg-open running_pace_calculator.html  # Linux
+open index.html      # macOS
+xdg-open index.html  # Linux
 ```
-
-That's it. There is nothing to install.
 
 ## Features
 
@@ -75,8 +79,8 @@ For the multi-segment calculator, each segment's time is derived as `distance / 
 ## Project structure
 
 ```
-running_pace_calculator.html   # markup, styles and logic in one file
-README.md                      # this file
+index.html    # markup, styles and logic in one file
+README.md     # this file
 ```
 
 The page is responsive: the two converters sit side by side on desktop and stack into a single column below 768px.
