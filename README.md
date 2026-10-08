@@ -52,7 +52,12 @@ The **8K** and **10K** buttons pre-create that many segment rows in one click. T
 
 Because every segment is exactly 1 km, the average here is a straight mean of the split times.
 
-### 5. Pace & speed reference table
+### 5. Pace & speed from distance and time
+Enter a distance in km and a final time as `h:mm:ss` or `mm:ss`, and get the pace and speed that result, along with the distance and time echoed back.
+
+> 10 km in 52:30 → 5:15 min/km, 11.43 km/h
+
+### 6. Pace & speed reference table
 A static lookup table generated on page load, covering paces from **6:30 down to 3:00 min/km** in 10-second steps (22 rows), filtered to speeds between 8 and 20 km/h and sorted by ascending speed.
 
 ## Input formats
@@ -62,8 +67,9 @@ A static lookup table generated on page load, covering paces from **6:30 down to
 | Speed | Decimal number, 1–60 km/h | `11.5` |
 | Pace | `mm:ss`, digits only | `5:30` |
 | Distance | Decimal number, km greater than 0 | `2.5` |
+| Final time | `h:mm:ss` or `mm:ss`, digits only | `52:30`, `1:45:10` |
 
-Invalid input raises a browser alert naming the offending segment, and the calculation is aborted. Rejected: missing values, speeds outside 1–60 km/h, a zero or negative distance, seconds outside `0`–`59`, a pace of `0:00`, and anything not in strict `mm:ss` form — trailing characters such as `5abc:30` are refused rather than silently parsed as `5:30`.
+Invalid input raises a browser alert naming the offending segment, and the calculation is aborted. Rejected: missing values, speeds outside 1–60 km/h, a zero or negative distance, seconds outside `0`–`59`, a pace or final time of zero, minutes outside `0`–`59` in an `h:mm:ss` time, a pace or time resulting in a speed outside 1–60 km/h, and anything not in strict `mm:ss` form — trailing characters such as `5abc:30` are refused rather than silently parsed as `5:30`.
 
 ## How it works
 
